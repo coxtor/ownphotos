@@ -1,0 +1,95 @@
+version: '3'
+
+services:
+  frontend:       
+    image: hooram/ownphotos-frontend:dev
+    container_name: ownphotos-frontend
+    tty: true
+    environment:
+      - BACKEND_HOST=photos.${DOMAINNAME}
+
+    depends_on:
+      - backend   
+
+    networks:
+      - internal
+      - proxy
+
+    labels:
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:photos.${DOMAINNAME}
+      - traefik.backend=backend
+      - traefik.port=3000   
+      - traefik.docker.network=proxy         
+
+  backend:
+    image: hooram/ownphotos:dev
+    container_name: ownphotos-backend
+    volumes:
+      - ownphotos-source:/code
+      - /some_local_folder:/data/
+      - /media/data/ownphotos/thumbnails:/code/protected_media 
+      - /media/data/ownphotos/logs:/code/logs
+    environment:
+      - SECRET_KEY=${OWNPHOTOS_SECRET_KEY} 
+      - BACKEND_HOST=backend # DON'T CHANGE ME
+      - ADMIN_EMAIL=${CONTACT_EMAIL}
+      - ADMIN_USERNAME=${DOCK_USERNAME}
+      - ADMIN_PASSWORD=${OWNPHOTOS_ADMIN_PASSWORD}
+      - DEBUG=false
+      - DB_BACKEND=postgresql
+      - DB_NAME=ownphotos
+      - DB_USER=postgres
+      # This db password is internal, you can change it if you want, but also change it in ownphotos-db container
+      - DB_PASS=${OWNPHOTOS_DB_PASSWORD}
+      - DB_HOST=ownphotos-db
+      - DB_PORT=5432
+      - REDIS_HOST=ownphotos-redis
+      - REDIS_PORT=6379
+      - MAPBOX_API_KEY=${MAPBOX_API_KEY} # CHANGE ME - sign up at mapbox.com for an api key. You need this for reverse geocoding. 
+    networks:
+      - internal
+      - proxy 
+
+    depends_on:
+      - ownphotos-redis      
+      - ownphotos-db
+    entrypoint:
+      - /code/entrypoint.sh
+    labels:
+       - traefik.enable=true
+       - traefik.frontend.rule=Host:photos.${DOMAINNAME};Path:/api/ 
+       - traefik.docker.network=proxy  
+
+  ownphotos-redis:
+    image: redis
+    container_name: ownphotos-redis
+    networks:
+      - internal
+    labels:
+      - traefik.enable=false    
+
+  ownphotos-db:
+    image: postgres
+    container_name: ownphotos-db
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=${OWNPHOTOS_DB_PASSWORD}
+      - POSTGRES_DB=ownphotos
+    volumes:
+      - ownphotos-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    labels:
+      - traefik.enable=false   
+
+volumes:
+  ownphotos-source:
+  ownphotos-data:
+  media:
+
+networks:
+  proxy:
+    external: true
+  internal:
+    external: false
