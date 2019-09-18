@@ -38,5 +38,5 @@ echo "Running backend server..."
 
 
 /miniconda/bin/python manage.py rqworker default 2>&1 | tee logs/rqworker.log &
-/miniconda/bin/gunicorn --workers=2 --worker-class=gevent --bind 0.0.0.0:8001 --log-level=info ownphotos.wsgi 2>&1 | tee logs/gunicorn_django.log 
+/miniconda/bin/gunicorn --workers=2 --worker-class=gevent --bind 0.0.0.0:8001 --timeout 90 --log-level=info ownphotos.wsgi 2>&1 | tee logs/gunicorn_django.log 
 
